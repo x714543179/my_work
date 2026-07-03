@@ -195,6 +195,8 @@ class DreamWaQActorBackbone(nn.Module):
 class _DreamWaQJitWrapper(nn.Module):
     """TorchScript wrapper with the legacy DreamWaQ export signature."""
 
+    __constants__ = ["collision_dim", "wheel_ground_dist_dim"]
+
     def __init__(self, backbone: DreamWaQActorBackbone) -> None:
         super().__init__()
         self.actor = copy.deepcopy(backbone.actor)
@@ -207,9 +209,14 @@ class _DreamWaQJitWrapper(nn.Module):
         self.wheel_ground_dist_dim = backbone.wheel_ground_dist_dim
         if self.collision_dim > 0:
             self.encode_collision_logits = copy.deepcopy(backbone.encode_collision_logits)
+        else:
+            self.encode_collision_logits = nn.Identity()
         if self.wheel_ground_dist_dim > 0:
             self.encode_mean_wheel_ground_dist = copy.deepcopy(backbone.encode_mean_wheel_ground_dist)
             self.encode_logvar_wheel_ground_dist = copy.deepcopy(backbone.encode_logvar_wheel_ground_dist)
+        else:
+            self.encode_mean_wheel_ground_dist = nn.Identity()
+            self.encode_logvar_wheel_ground_dist = nn.Identity()
 
     def forward(self, observations: torch.Tensor, history_observations: torch.Tensor) -> torch.Tensor:
         distribution = self.encoder(history_observations)
