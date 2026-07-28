@@ -114,20 +114,41 @@ def dof_hip_pos(env):
     return torch.sum(error[:, [0, 4, 8, 12]], dim=1)
 
 
-def hip_splay(env, tolerance=0.20, flight_multiplier=2.0):
-    """Discourage excessive hip abduction without locking lateral push-off."""
-    hip_position = env.dof_pos[:, [0, 4, 8, 12]]
-    excess = (torch.abs(hip_position) - tolerance).clamp(min=0.0)
-    jump_phase = env.jump_signal_issued & (~env.has_jumped)
-    phase_multiplier = torch.where(
-        env.was_in_flight,
-        torch.full_like(excess[:, 0], flight_multiplier),
-        torch.ones_like(excess[:, 0]),
+def hip_modes(env):
+    """Return hip deviations and their collective and splay components."""
+    hip_deviation = (
+        env.dof_pos[:, [0, 4, 8, 12]]
+        - env.default_dof_pos[:, [0, 4, 8, 12]]
     )
+    left_hip = 0.5 * (hip_deviation[:, 0] + hip_deviation[:, 2])
+    right_hip = 0.5 * (hip_deviation[:, 1] + hip_deviation[:, 3])
+    lateral_mode = 0.5 * (left_hip + right_hip)
+    splay_mode = 0.5 * (left_hip - right_hip)
+    return hip_deviation, lateral_mode, splay_mode
+
+
+def hip_splay_takeoff(env, tolerance=0.20):
+    """Penalize symmetric leg splay while preserving useful lateral motion."""
+    _, _, splay_mode = hip_modes(env)
+    excess = (torch.abs(splay_mode) - tolerance).clamp(min=0.0)
+    takeoff_phase = (
+        env.jump_signal_issued
+        & (~env.was_in_flight)
+        & (~env.has_jumped)
+    )
+    # Four equal outward hip deviations reproduce the old per-joint magnitude.
     return (
-        torch.sum(torch.square(excess), dim=1)
-        * phase_multiplier
-        * jump_phase.float()
+        4.0 * torch.square(excess) * takeoff_phase.float()
+    )
+
+
+def hip_tuck_flight(env):
+    """Pull all hip joints back toward their default pose during flight."""
+    hip_deviation, _, _ = hip_modes(env)
+    flight_phase = env.was_in_flight & (~env.has_jumped)
+    return (
+        torch.sum(torch.square(hip_deviation), dim=1)
+        * flight_phase.float()
     )
 
 

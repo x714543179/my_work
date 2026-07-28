@@ -269,11 +269,16 @@ class NezhaJumpCfg(BaseConfig):
         orientation = ManagerTermCfg(func=mdp.orientation, scale=2.0, env_arg=True)
         dof_pos = ManagerTermCfg(func=mdp.dof_pos, scale=-0.1, env_arg=True)
         dof_hip_pos = ManagerTermCfg(func=mdp.dof_hip_pos, scale=-0.5, env_arg=True)
-        hip_splay = ManagerTermCfg(
-            func=mdp.hip_splay,
+        hip_splay_takeoff = ManagerTermCfg(
+            func=mdp.hip_splay_takeoff,
             scale=-8.0,
             env_arg=True,
-            params={"tolerance": 0.20, "flight_multiplier": 2.0},
+            params={"tolerance": 0.20},
+        )
+        hip_tuck_flight = ManagerTermCfg(
+            func=mdp.hip_tuck_flight,
+            scale=-8.0,
+            env_arg=True,
         )
         ang_vel_xy = ManagerTermCfg(func=mdp.ang_vel_xy, scale=-0.2, env_arg=True)
         jump_yaw_tracking = ManagerTermCfg(
@@ -374,6 +379,7 @@ class NezhaJumpCfg(BaseConfig):
     class jump_metrics:
         success_min_height = 0.65
         success_max_landing_error = 0.30
+        lateral_distance_bin_edges = [0.70, 0.95]
 
     class normalization:
         contact_force_range = [0.0, 100.0]

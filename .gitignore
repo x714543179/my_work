@@ -65,8 +65,6 @@ __pycache__
 env_cfg.pkl
 train_cfg.pkl
 
-/legged_gym/resources/robots/nezha/
-/legged_gym/resources/robots/nezha3/
 /legged_gym/legged_gym/envs/sy2601/
 /legged_gym/resources/robots/t1/
 /legged_gym/legged_gym/scripts/playnezha.py

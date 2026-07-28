@@ -504,6 +504,18 @@ class NezhaJump(ManagerBasedTask):
         self.max_hip_deviation = torch.zeros_like(
             self.pre_jump_displacement
         )
+        self.max_hip_takeoff_deviation = torch.zeros_like(
+            self.pre_jump_displacement
+        )
+        self.max_hip_flight_deviation = torch.zeros_like(
+            self.pre_jump_displacement
+        )
+        self.max_hip_takeoff_splay = torch.zeros_like(
+            self.pre_jump_displacement
+        )
+        self.max_hip_flight_splay = torch.zeros_like(
+            self.pre_jump_displacement
+        )
         self.not_pushed_up = torch.zeros_like(self.was_in_flight)
         self.assist_probability_tenths = 0
         self.feet_pos = self.rigid_body_states[:, self.feet_indices, :3]
@@ -551,6 +563,33 @@ class NezhaJump(ManagerBasedTask):
         self.max_hip_deviation[:] = torch.maximum(
             self.max_hip_deviation,
             hip_deviation * jump_phase.float(),
+        )
+        hip_deviation_from_default, _, splay_mode = mdp.hip_modes(self)
+        hip_max = torch.max(
+            torch.abs(hip_deviation_from_default), dim=1
+        ).values
+        splay_abs = torch.abs(splay_mode)
+        takeoff_phase = (
+            self.jump_signal_issued
+            & (~self.was_in_flight)
+            & (~self.has_jumped)
+        )
+        flight_phase = self.was_in_flight & (~self.has_jumped)
+        self.max_hip_takeoff_deviation[:] = torch.maximum(
+            self.max_hip_takeoff_deviation,
+            hip_max * takeoff_phase.float(),
+        )
+        self.max_hip_flight_deviation[:] = torch.maximum(
+            self.max_hip_flight_deviation,
+            hip_max * flight_phase.float(),
+        )
+        self.max_hip_takeoff_splay[:] = torch.maximum(
+            self.max_hip_takeoff_splay,
+            splay_abs * takeoff_phase.float(),
+        )
+        self.max_hip_flight_splay[:] = torch.maximum(
+            self.max_hip_flight_splay,
+            splay_abs * flight_phase.float(),
         )
 
         contact = self.contact_forces[:, self.feet_indices, 2] > 1.0
@@ -686,8 +725,9 @@ class NezhaJump(ManagerBasedTask):
             target_delta = (
                 target_xy - self.jump_origins[metric_ids]
             )
-            target_direction = target_delta / torch.linalg.norm(
-                target_delta, dim=1, keepdim=True
+            target_distance = torch.linalg.norm(target_delta, dim=1)
+            target_direction = target_delta / target_distance.unsqueeze(
+                1
             ).clamp(min=1.0e-6)
             cross_direction = torch.stack(
                 (-target_direction[:, 1], target_direction[:, 0]), dim=1
@@ -718,8 +758,59 @@ class NezhaJump(ManagerBasedTask):
                     "lateral_max_hip_deviation": self.max_hip_deviation[
                         metric_ids
                     ][lateral].mean(),
+                    "lateral_takeoff_max_hip_deviation": (
+                        self.max_hip_takeoff_deviation[metric_ids][
+                            lateral
+                        ].mean()
+                    ),
+                    "lateral_takeoff_splay": self.max_hip_takeoff_splay[
+                        metric_ids
+                    ][lateral].mean(),
                 }
             )
+            lateral_flight = lateral & self.was_in_flight[metric_ids]
+            if torch.any(lateral_flight):
+                metrics.update(
+                    {
+                        "lateral_flight_max_hip_deviation": (
+                            self.max_hip_flight_deviation[metric_ids][
+                                lateral_flight
+                            ].mean()
+                        ),
+                        "lateral_flight_splay": self.max_hip_flight_splay[
+                            metric_ids
+                        ][lateral_flight].mean(),
+                    }
+                )
+
+            near_edge, far_edge = (
+                self.cfg.jump_metrics.lateral_distance_bin_edges
+            )
+            distance_bins = {
+                "near": target_distance < near_edge,
+                "mid": (target_distance >= near_edge)
+                & (target_distance < far_edge),
+                "far": target_distance >= far_edge,
+            }
+            for bin_name, distance_mask in distance_bins.items():
+                bin_mask = lateral & distance_mask
+                if not torch.any(bin_mask):
+                    continue
+                metrics.update(
+                    {
+                        f"lateral_{bin_name}_jump_success_rate": (
+                            successful[bin_mask].float().mean()
+                        ),
+                        f"lateral_{bin_name}_landing_error": (
+                            reported_landing_error[bin_mask].mean()
+                        ),
+                        f"lateral_{bin_name}_max_hip_deviation": (
+                            self.max_hip_deviation[metric_ids][
+                                bin_mask
+                            ].mean()
+                        ),
+                    }
+                )
         return metrics
 
     def _reset_dofs(self, env_ids):
@@ -779,6 +870,10 @@ class NezhaJump(ManagerBasedTask):
         self.jump_heading_error_sum[env_ids] = 0.0
         self.jump_heading_error_steps[env_ids] = 0
         self.max_hip_deviation[env_ids] = 0.0
+        self.max_hip_takeoff_deviation[env_ids] = 0.0
+        self.max_hip_flight_deviation[env_ids] = 0.0
+        self.max_hip_takeoff_splay[env_ids] = 0.0
+        self.max_hip_flight_splay[env_ids] = 0.0
         self.last_contacts[env_ids] = False
         self.contact_filt[env_ids] = False
         self.not_pushed_up[env_ids] = True

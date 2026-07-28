@@ -69,11 +69,12 @@ rather than turning the body toward the landing target. Lateral distance and
 cross-track errors are logged as diagnostics but do not have a dedicated
 landing reward.
 
-Hip joints use a `-0.5` default-position weight. A
-separate jump-phase penalty permits up to `0.20 rad` hip motion and penalizes
-only the excess with weight `-4.0`, and doubles that penalty in flight. This
-leaves useful lateral push-off authority while discouraging large symmetric
-leg splay on long jumps.
+Hip joints use a `-0.5` default-position weight. The `hip_splay_takeoff=-4.0`
+term penalizes only left/right symmetric splay beyond `0.20 rad` before flight,
+without penalizing collective lateral hip motion. During flight,
+`hip_tuck_flight=-4.0` pulls all four hips back toward their default positions.
+This preserves lateral push-off authority while discouraging takeoff splay and
+an untucked flight posture separately.
 
 The `line_z` reward is active for only 0.4 seconds after the actual jump signal
 and stops as soon as flight begins. The jump signal returns to zero on the
@@ -102,5 +103,15 @@ these commanded-jump episode metrics:
 - `Episode/max_hip_deviation` and
   `Episode/lateral_max_hip_deviation`: largest absolute hip angle during the
   jump phase.
+- `Episode/lateral_takeoff_max_hip_deviation` and
+  `Episode/lateral_flight_max_hip_deviation`: maximum hip deviation from the
+  default pose in the takeoff and flight phases of lateral jumps. The flight
+  metric includes only episodes that actually entered flight.
+- `Episode/lateral_takeoff_splay` and `Episode/lateral_flight_splay`: maximum
+  magnitude of the left/right splay mode in each phase.
+- `Episode/lateral_{near,mid,far}_jump_success_rate`,
+  `Episode/lateral_{near,mid,far}_landing_error`, and
+  `Episode/lateral_{near,mid,far}_max_hip_deviation`: lateral performance split
+  into `[0.45, 0.70) m`, `[0.70, 0.95) m`, and `[0.95, 1.20] m` command bins.
 
 WandB logging defaults to project `nezha_spring_jump` in online mode.
