@@ -23,6 +23,13 @@ class RewardManager(ManagerBase):
     def reward_scales(self):
         return {name: self._term_scale(term) for name, term in zip(self._term_names, self._terms)}
 
+    @property
+    def reward_weights(self):
+        return {
+            name: term.weight if term.weight is not None else term.scale
+            for name, term in zip(self._term_names, self._terms)
+        }
+
     def compute(self):
         env = self.env
         env.rew_buf[:] = 0.0

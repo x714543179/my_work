@@ -76,6 +76,13 @@ class OnPolicyRunner:
         # Start training
         start_it = self.current_learning_iteration
         total_it = start_it + num_learning_iterations
+        reward_manager = getattr(self.env, "reward_manager", None)
+        if reward_manager is not None:
+            self.logger.log_reward_scales(
+                reward_manager.reward_weights,
+                reward_manager.reward_scales,
+                step=start_it,
+            )
         for it in range(start_it, total_it):
             start = time.time()
             # Rollout

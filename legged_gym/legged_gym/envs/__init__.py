@@ -30,6 +30,23 @@
 
 from legged_gym.envs.go2w.go2w_dreamwaq.go2w_config import GO2WRoughCfg, GO2WRoughCfgPPO
 from .go2w.go2w_dreamwaq.go2w_robot import Go2w
+from legged_gym.envs.go2w.go2w_sf.go2w_sf_config import (
+    GO2WSfCfg,
+    GO2WSfCfgPPO,
+    GO2WSfTrotCfg,
+    GO2WSfTrotCfgPPO,
+)
+from .go2w.go2w_sf.go2w_sf_robot import Go2wSf
+from legged_gym.envs.go1.go1_omni_jump.go1_omni_jump_config import (
+    Go1OmniJumpCfg,
+    Go1OmniJumpCfgPPO,
+)
+from .go1.go1_omni_jump.go1_omni_jump_robot import Go1OmniJump
+from legged_gym.envs.nezha.nezha_jump import (
+    NezhaJump,
+    NezhaJumpCfg,
+    NezhaJumpCfgPPO,
+)
 
 # from .nezha.nezha_config import NEZHARoughCfg, NEZHARoughCfgPPO
 # from .nezha.nezha_robot import NEZHA
@@ -38,3 +55,9 @@ from legged_gym.utils.task_registry import task_registry
 
 task_registry.register( "go2w", Go2w, GO2WRoughCfg(), GO2WRoughCfgPPO())
 
+task_registry.register("go2w_sf_trot", Go2wSf, GO2WSfTrotCfg(), GO2WSfTrotCfgPPO())
+task_registry.register("go2w_sf", Go2wSf, GO2WSfCfg(), GO2WSfCfgPPO())
+task_registry.register("go1_omni_jump", Go1OmniJump, Go1OmniJumpCfg(), Go1OmniJumpCfgPPO())
+task_registry.register("nezha_jump", NezhaJump, NezhaJumpCfg(), NezhaJumpCfgPPO())
+
+# task_registry.register("nezha", NEZHA, NEZHARoughCfg(), NEZHARoughCfgPPO() )

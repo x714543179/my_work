@@ -127,6 +127,20 @@ class Logger:
             for path in files_to_upload:
                 self.writer.save_file(path)  # type: ignore
 
+    def log_reward_scales(
+        self,
+        reward_weights: dict[str, float],
+        reward_scales: dict[str, float],
+        step: int = 0,
+    ) -> None:
+        """Log configured reward weights and effective per-step scales."""
+        if self.writer is None:
+            return
+        for name, weight in reward_weights.items():
+            self.writer.add_scalar(f"RewardWeight/{name}", weight, step)
+        for name, scale in reward_scales.items():
+            self.writer.add_scalar(f"RewardScale/{name}", scale, step)
+
     def process_env_step(
         self,
         rewards: torch.Tensor,

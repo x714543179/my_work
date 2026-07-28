@@ -13,6 +13,8 @@ from .model_base import Model_Base
 from .my_model import MyModel
 from .my_mlp_model import MyMLPModel
 from .dreamwaq_model import DreamWaQActorBackbone
+from .omni_jump_model import OmniJumpActorBackbone
+from .sf_tim_model import SFTIMActorBackbone
 __all__ = [
     "ActorModel",
     "CNNModel",
@@ -22,4 +24,6 @@ __all__ = [
     "MyMLPModel",
     "Model_Base",
     "DreamWaQActorBackbone",
+    "OmniJumpActorBackbone",
+    "SFTIMActorBackbone",
 ]

@@ -5,6 +5,39 @@ from __future__ import annotations
 import torch
 
 
+def _terrain_mask(env, terrain_types=None, exclude_terrain_types=None):
+    mask = torch.ones(env.num_envs, dtype=torch.bool, device=env.device)
+    if not hasattr(env, "env_class"):
+        return mask
+    env_type = env.env_class.long()
+    if terrain_types is not None:
+        mask = torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
+        for terrain_id in terrain_types:
+            mask |= env_type == int(terrain_id)
+    if exclude_terrain_types is not None:
+        for terrain_id in exclude_terrain_types:
+            mask &= env_type != int(terrain_id)
+    return mask
+
+
+def _measured_heights(env):
+    if torch.is_tensor(env.measured_heights):
+        return env.measured_heights
+    return torch.zeros(env.num_envs, env.num_height_points, device=env.device, dtype=env.root_states.dtype)
+
+
+def _terrain_plane_normal(env):
+    heights = _measured_heights(env)
+    if not hasattr(env, "sf_tim_plane_pinv"):
+        points = env.height_points[0, :, :2]
+        ones = torch.ones(points.shape[0], 1, device=env.device, dtype=points.dtype)
+        design = torch.cat((points, ones), dim=-1)
+        env.sf_tim_plane_pinv = torch.linalg.pinv(design)
+    coeff = heights @ env.sf_tim_plane_pinv.T
+    normal = torch.cat((-coeff[:, :2], torch.ones(env.num_envs, 1, device=env.device, dtype=coeff.dtype)), dim=-1)
+    return torch.nn.functional.normalize(normal, dim=-1)
+
+
 def lin_vel_z(env):
     return torch.square(env.base_lin_vel[:, 2])
 
@@ -75,6 +108,18 @@ def tracking_lin_vel(env):
 def tracking_ang_vel(env):
     ang_vel_error = torch.square(env.commands[:, 2] - env.base_ang_vel[:, 2])
     return torch.exp(-ang_vel_error / env.cfg.rewards.tracking_sigma)
+
+
+def sf_tim_terrain_guided_lin_vel(env, terrain_types=(4,)):
+    mask = _terrain_mask(env, terrain_types=terrain_types)
+    normal = _terrain_plane_normal(env)
+    pitch = torch.asin(torch.clamp(normal[:, 0], -0.95, 0.95))
+    forward = torch.zeros_like(normal)
+    forward[:, 0] = torch.cos(-pitch)
+    forward[:, 2] = -torch.sin(-pitch)
+    forward = torch.nn.functional.normalize(forward, dim=-1)
+    velocity_along_terrain = torch.sum(env.root_states[:, 7:10] * forward, dim=-1)
+    return torch.minimum(velocity_along_terrain, env.commands[:, 0]) * mask.float()
 
 
 def feet_air_time(env):

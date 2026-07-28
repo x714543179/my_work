@@ -72,6 +72,12 @@ def _manager_term_params(cfg, section_name, term_name):
         return None
     term = getattr(section, term_name, None)
     if term is None:
+        for group_name in ("actor", "critic"):
+            group = getattr(section, group_name, None)
+            term = getattr(group, term_name, None) if group is not None else None
+            if term is not None:
+                break
+    if term is None:
         return None
     if isinstance(term, dict):
         return term.setdefault("params", {})

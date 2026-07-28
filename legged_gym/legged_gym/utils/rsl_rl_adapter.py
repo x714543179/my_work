@@ -74,5 +74,7 @@ class RslRlVecEnvAdapter:
         widths = getattr(observation_manager, "_privileged_term_widths", [])
         if not names or prev_privileged_obs is None:
             return {}
+        if sum(widths) != prev_privileged_obs.shape[-1]:
+            return {}
         chunks = torch.split(prev_privileged_obs, widths, dim=-1)
         return {f"prev_{name}": chunk for name, chunk in zip(names, chunks)}

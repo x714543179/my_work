@@ -11,6 +11,8 @@ class ObservationManager(ManagerBase):
     def __init__(self, env, cfg=None):
         super().__init__(env, cfg)
         self.noise_scale_vec = None
+        self._group_cfgs = self._resolve_group_cfgs(cfg)
+        self._group_histories = {}
         self._group_terms = self._resolve_group_terms(cfg)
         self.obs_groups = self._build_obs_groups()
         self._flat_group_terms = [
@@ -36,16 +38,18 @@ class ObservationManager(ManagerBase):
             if not obs_terms:
                 raise RuntimeError("ObservationManager requires at least one policy observation term.")
 
-            policy_values = [(name, self._call_term(term)) for name, term in obs_terms]
-            self.env.obs_buf = torch.cat([value for _, value in policy_values], dim=-1)
+            policy_values = self._compute_group_values("actor", obs_terms)
+            policy_frame = torch.cat([value for _, value in policy_values], dim=-1)
+            self.env.obs_buf = self._append_group_history("actor", policy_frame)
             self._set_policy_term_buffers(policy_values)
             if hasattr(self.env, "_post_process_observations"):
                 self.env._post_process_observations()
                 self._sync_policy_term_buffers_from_obs_buf()
 
             if privileged_terms:
-                privileged_values = [(name, self._call_term(term)) for name, term in privileged_terms]
-                self.env.privileged_obs_buf = torch.cat([value for _, value in privileged_values], dim=-1)
+                privileged_values = self._compute_group_values("critic", privileged_terms)
+                privileged_frame = torch.cat([value for _, value in privileged_values], dim=-1)
+                self.env.privileged_obs_buf = self._append_group_history("critic", privileged_frame)
                 self._set_privileged_term_buffers(privileged_values)
             elif hasattr(self.env, "_compute_privileged_observations"):
                 self.env.privileged_obs_buf = self.env._compute_privileged_observations()
@@ -55,6 +59,12 @@ class ObservationManager(ManagerBase):
         else:
             self.env._compute_observations_impl()
         return self.env.obs_buf, self.env.privileged_obs_buf
+
+    def reset(self, env_ids):
+        if len(env_ids) == 0:
+            return
+        for history in self._group_histories.values():
+            history[env_ids] = 0.0
 
     def compute_noise_scale_vec(self):
         """Build policy observation noise scales from per-term noise configs.
@@ -70,7 +80,9 @@ class ObservationManager(ManagerBase):
         for _, term in self._terms_for_obs_set("actor"):
             term_value = self._call_term(term)
             noise_terms.append(self._noise_for_term(term, term_value))
-        return torch.cat(noise_terms, dim=-1)
+        noise = torch.cat(noise_terms, dim=-1)
+        history_length = self._group_history_length("actor")
+        return noise.repeat(history_length)
 
     def update_history_before_step(self):
         env = self.env
@@ -118,6 +130,8 @@ class ObservationManager(ManagerBase):
     def _sync_policy_term_buffers_from_obs_buf(self):
         if not self._policy_term_names or self.env.obs_buf is None:
             return
+        if sum(self._policy_term_widths) != self.env.obs_buf.shape[-1]:
+            return
         chunks = torch.split(self.env.obs_buf, self._policy_term_widths, dim=-1)
         self.env.obs_term_bufs = dict(zip(self._policy_term_names, chunks))
 
@@ -127,8 +141,46 @@ class ObservationManager(ManagerBase):
             or self.env.privileged_obs_buf is None
         ):
             return
+        if sum(self._privileged_term_widths) != self.env.privileged_obs_buf.shape[-1]:
+            return
         chunks = torch.split(self.env.privileged_obs_buf, self._privileged_term_widths, dim=-1)
         self.env.privileged_obs_term_bufs = dict(zip(self._privileged_term_names, chunks))
+
+    def _compute_group_values(self, group_name, terms):
+        values = []
+        group_cfg = self._group_cfgs.get(group_name)
+        corrupt = bool(getattr(group_cfg, "enable_corruption", False))
+        noise_cfg = getattr(self.env.cfg, "noise", None)
+        add_noise = bool(getattr(noise_cfg, "add_noise", False))
+        for name, term in terms:
+            value = self._call_term(term)
+            if corrupt and add_noise and term.noise is not None:
+                noise = self._noise_for_term(term, value)
+                value = value + (2.0 * torch.rand_like(value) - 1.0) * noise
+            values.append((name, value))
+        return values
+
+    def _append_group_history(self, group_name, current):
+        history_length = self._group_history_length(group_name)
+        if history_length <= 1:
+            return current
+
+        history = self._group_histories.get(group_name)
+        expected_shape = (self.env.num_envs, history_length, current.shape[-1])
+        if history is None or tuple(history.shape) != expected_shape:
+            history = torch.zeros(
+                expected_shape,
+                dtype=current.dtype,
+                device=current.device,
+            )
+            self._group_histories[group_name] = history
+        history[:, :-1] = history[:, 1:].clone()
+        history[:, -1] = current
+        return history.reshape(self.env.num_envs, -1)
+
+    def _group_history_length(self, group_name):
+        group_cfg = self._group_cfgs.get(group_name)
+        return max(1, int(getattr(group_cfg, "history_length", 1)))
 
     def _noise_for_term(self, term, term_value):
         if term.noise is None:
@@ -173,12 +225,8 @@ class ObservationManager(ManagerBase):
         }
 
     def _resolve_explicit_groups(self, cfg):
-        if cfg is None:
-            return {}
         groups = {}
-        for group_name, group_cfg in self._iter_cfg_items(cfg):
-            if not self._is_obs_group(group_cfg):
-                continue
+        for group_name, group_cfg in self._group_cfgs.items():
             group_terms = []
             for term_name, value in self._iter_cfg_items(group_cfg):
                 term_cfg = self._coerce_term_cfg(value)
@@ -188,6 +236,15 @@ class ObservationManager(ManagerBase):
             if group_terms:
                 groups[group_name] = group_terms
         return groups
+
+    def _resolve_group_cfgs(self, cfg):
+        if cfg is None:
+            return {}
+        return {
+            group_name: group_cfg
+            for group_name, group_cfg in self._iter_cfg_items(cfg)
+            if self._is_obs_group(group_cfg)
+        }
 
     @staticmethod
     def _is_obs_group(value):
@@ -199,7 +256,10 @@ class ObservationManager(ManagerBase):
 
     def _build_obs_groups(self):
         if self._group_terms:
-            return {group_name: [term_name for term_name, _ in terms] for group_name, terms in self._group_terms.items()}
+            return {
+                group_name: [term_name for term_name, _ in terms]
+                for group_name, terms in self._group_terms.items()
+            }
         if self._terms:
             return {
                 "actor": [name for name, term in zip(self._term_names, self._terms) if term.mode in (None, "policy")],

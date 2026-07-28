@@ -41,6 +41,36 @@ def dof_pos(env):
     return dof_pos
 
 
+def elevation_map(
+    env,
+    base_height_offset=0.5,
+    clip=(-1.0, 1.0),
+    scale=None,
+    add_noise=False,
+    noise_ratio_range=(0.0, 0.1),
+    noise_magnitude_range=(-1.0, 2.0),
+):
+    if torch.is_tensor(env.measured_heights):
+        heights = env.measured_heights
+    else:
+        heights = torch.zeros(env.num_envs, env.num_height_points, device=env.device, dtype=env.root_states.dtype)
+
+    terrain_obs = env.root_states[:, 2].unsqueeze(1) - base_height_offset - heights
+    if add_noise and getattr(env, "add_noise", False):
+        ratio = torch.empty(env.num_envs, 1, device=env.device, dtype=terrain_obs.dtype).uniform_(
+            noise_ratio_range[0], noise_ratio_range[1]
+        )
+        mask = torch.rand_like(terrain_obs) < ratio
+        noise = torch.empty_like(terrain_obs).uniform_(noise_magnitude_range[0], noise_magnitude_range[1])
+        terrain_obs = torch.where(mask, terrain_obs + noise, terrain_obs)
+
+    if clip is not None:
+        terrain_obs = torch.clip(terrain_obs, clip[0], clip[1])
+    if scale is None:
+        scale = env.obs_scales.height_measurements
+    return terrain_obs * scale
+
+
 def imu_noise(env, term_value):
     noise_scales = env.cfg.noise.noise_scales
     noise_level = env.cfg.noise.noise_level

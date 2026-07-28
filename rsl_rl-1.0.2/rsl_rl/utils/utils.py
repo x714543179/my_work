@@ -131,6 +131,7 @@ def resolve_callable(callable_or_name: type | Callable | str) -> Callable:
         "CNNModel": "rsl_rl.models:CNNModel",
         "RNNModel": "rsl_rl.models:RNNModel",
         "DreamWaQActorBackbone": "rsl_rl.models:DreamWaQActorBackbone",
+        "SFTIMActorBackbone": "rsl_rl.models:SFTIMActorBackbone",
         "GaussianDistribution": "rsl_rl.modules:GaussianDistribution",
         "HeteroscedasticGaussianDistribution": "rsl_rl.modules:HeteroscedasticGaussianDistribution",
         "SymmetryLossPlugin": "rsl_rl.algorithms.plugins:SymmetryLossPlugin",

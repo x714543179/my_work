@@ -33,6 +33,8 @@ class ObsGroup:
     """
 
     mode: Optional[str] = None
+    history_length: int = 1
+    enable_corruption: bool = False
 
 
 class ManagerBase:

@@ -2,6 +2,7 @@ from .rough import RoughTerrainGenerator
 from .mix import MixTerrainGenerator
 from .gap_parkour import GapParkourTerrainGenerator
 from .external import ExternalTerrainFunction
+from .sf_tim import SFTIMTerrainGenerator
 from .mgdp import (
     AirStoneTerrain,
     BeamTerrain,
@@ -17,6 +18,7 @@ __all__ = [
     "MixTerrainGenerator",
     "GapParkourTerrainGenerator",
     "ExternalTerrainFunction",
+    "SFTIMTerrainGenerator",
     "ParkourStepTerrain",
     "ParkourGapTerrain",
     "RampTerrain",

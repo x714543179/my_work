@@ -116,11 +116,13 @@ class WandbSummaryWriter(SummaryWriter):
         wandb.finish()
 
     def save_model(self, model_path: str, it: int) -> None:
-        """Upload a model checkpoint artifact to W&B."""
-        wandb.save(model_path, base_path=os.path.dirname(model_path))
+        """Keep model checkpoints local instead of uploading them to W&B."""
+        return None
 
     def save_file(self, path: str) -> None:
         """Upload an arbitrary file artifact to W&B."""
+        if pathlib.Path(path).suffix.lower() == ".pt":
+            return
         wandb.save(path, base_path=os.path.dirname(path))
 
     def save_video(self, video: pathlib.Path, it: int) -> None:
