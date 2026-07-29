@@ -69,7 +69,7 @@ class NezhaJumpCfg(BaseConfig):
 
         class distance_curriculum:
             # Ranges expand only after the farthest 35% of the current level
-            # is reliable. 60000 environment steps are about 2500 PPO updates.
+            # is reliable. 30000 environment steps are about 1250 PPO updates.
             forward_levels = [
                 [0.8, 1.10],
                 [0.8, 1.35],
@@ -88,7 +88,6 @@ class NezhaJumpCfg(BaseConfig):
             frontier_fraction = 0.35
             forward_success_threshold = 0.70
             lateral_success_threshold = 0.55
-            min_samples = 64
             min_level_duration_steps = 30000
 
         resample = ManagerTermCfg(

@@ -124,10 +124,11 @@ Training starts with forward targets in `[0.8, 1.10] m` and lateral targets in
 and `1.20 m`. The lower distance bound remains fixed so every level retains
 easy commands.
 
-Each level is held for at least 60000 environment steps, approximately 2500 PPO
+Each level is held for at least 30000 environment steps, approximately 1250 PPO
 iterations with 24 steps per rollout. Advancement uses success within the
 farthest 35% of the active range, requiring 70% for forward jumps and 55% for
-lateral jumps with at least 64 samples. TensorBoard records
+lateral jumps. A non-empty reset batch is sufficient for evaluation; the sample
+count remains logged as a diagnostic. TensorBoard records
 `Episode/{forward,lateral}_curriculum_level`,
 `Episode/{forward,lateral}_curriculum_frontier_success`,
 `Episode/{forward,lateral}_curriculum_frontier_samples`, and

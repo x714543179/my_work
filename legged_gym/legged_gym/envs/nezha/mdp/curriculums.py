@@ -52,7 +52,9 @@ def _update_distance_level(env, env_ids, command_type):
         f"{command_type}_curriculum_frontier_samples",
         sample_count,
     )
-    if sample_count < cfg.min_samples:
+    # A non-empty mask is required for a finite mean. Curriculum decisions use
+    # the currently resetting frontier samples without a minimum batch size.
+    if sample_count == 0:
         return
 
     landing_error = torch.linalg.norm(
