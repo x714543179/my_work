@@ -67,6 +67,14 @@ def resample_jump_commands(
     if len(env_ids) == 0:
         return
 
+    command_ranges = getattr(env, "command_ranges", {})
+    forward_target_distance_range = command_ranges.get(
+        "forward_target_distance", forward_target_distance_range
+    )
+    lateral_target_distance_range = command_ranges.get(
+        "lateral_target_distance", lateral_target_distance_range
+    )
+
     count = len(env_ids)
     forward_distance = torch_rand_float(
         forward_target_distance_range[0],

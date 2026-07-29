@@ -631,9 +631,42 @@ class NezhaJump(ManagerBasedTask):
 
     def reset_idx(self, env_ids):
         episode_metrics = self._jump_episode_metrics(env_ids)
+        if self.cfg.commands.curriculum:
+            self.update_command_curriculum(env_ids)
         super().reset_idx(env_ids)
         if episode_metrics:
             self.extras["episode"].update(episode_metrics)
+
+    def update_command_curriculum(self, env_ids):
+        mdp.jump_distance_levels(self, env_ids)
+
+    def _command_curriculum_metrics(self):
+        return {
+            "forward_curriculum_level": float(
+                self.forward_curriculum_level
+            ),
+            "forward_curriculum_frontier_success": float(
+                self.forward_curriculum_frontier_success
+            ),
+            "forward_curriculum_frontier_samples": float(
+                self.forward_curriculum_frontier_samples
+            ),
+            "forward_curriculum_max_distance": float(
+                self.command_ranges["forward_target_distance"][1]
+            ),
+            "lateral_curriculum_level": float(
+                self.lateral_curriculum_level
+            ),
+            "lateral_curriculum_frontier_success": float(
+                self.lateral_curriculum_frontier_success
+            ),
+            "lateral_curriculum_frontier_samples": float(
+                self.lateral_curriculum_frontier_samples
+            ),
+            "lateral_curriculum_max_distance": float(
+                self.command_ranges["lateral_target_distance"][1]
+            ),
+        }
 
     def _jump_episode_metrics(self, env_ids):
         if len(env_ids) == 0:
@@ -896,6 +929,8 @@ class NezhaJump(ManagerBasedTask):
         self.dt = cfg.control.decimation * self.sim_params.dt
         self.obs_scales = cfg.normalization.obs_scales
         self.command_ranges = class_to_dict(cfg.commands.ranges)
+        if cfg.commands.curriculum:
+            mdp.initialize_jump_distance_curriculum(self)
         if cfg.terrain.mesh_type not in ("heightfield", "trimesh"):
             cfg.terrain.curriculum = False
         self.max_episode_length_s = cfg.env.episode_length_s

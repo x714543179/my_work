@@ -52,7 +52,7 @@ class NezhaJumpCfg(BaseConfig):
         test = False
 
     class commands:
-        curriculum = False
+        curriculum = True
         # [target_dx_body, target_dy_body, approach_forward_velocity,
         #  approach_yaw_rate, jump_signal]
         num_commands = 5
@@ -66,6 +66,30 @@ class NezhaJumpCfg(BaseConfig):
         readiness_lateral_velocity_tolerance = 0.2
         readiness_yaw_rate_tolerance = 0.2
         max_trigger_delay_s = 0.6
+
+        class distance_curriculum:
+            # Ranges expand only after the farthest 35% of the current level
+            # is reliable. 60000 environment steps are about 2500 PPO updates.
+            forward_levels = [
+                [0.8, 1.10],
+                [0.8, 1.35],
+                [0.8, 1.60],
+                [0.8, 1.80],
+            ]
+            lateral_levels = [
+                [0.45, 0.70],
+                [0.45, 0.80],
+                [0.45, 0.95],
+                [0.45, 1.075],
+                [0.45, 1.20],
+            ]
+            initial_forward_level = 0
+            initial_lateral_level = 0
+            frontier_fraction = 0.35
+            forward_success_threshold = 0.70
+            lateral_success_threshold = 0.55
+            min_samples = 64
+            min_level_duration_steps = 30000
 
         resample = ManagerTermCfg(
             func=mdp.resample_jump_commands,

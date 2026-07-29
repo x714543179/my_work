@@ -20,6 +20,7 @@ PLAY_EPISODES = 10
 def _configure_play_env(env_cfg, args):
     env_cfg.env.num_envs = args.num_envs if args.num_envs is not None else 1
     env_cfg.terrain.curriculum = False
+    env_cfg.commands.curriculum = False
     env_cfg.noise.add_noise = False
 
     # Evaluate the learned jump instead of the training-time vertical velocity assist.

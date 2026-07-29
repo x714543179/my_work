@@ -115,3 +115,21 @@ these commanded-jump episode metrics:
   into `[0.45, 0.70) m`, `[0.70, 0.95) m`, and `[0.95, 1.20] m` command bins.
 
 WandB logging defaults to project `nezha_spring_jump` in online mode.
+
+## Distance curriculum
+
+Training starts with forward targets in `[0.8, 1.10] m` and lateral targets in
+`[0.45, 0.70] m`. Forward targets expand through maximum distances `1.35`,
+`1.60`, and `1.80 m`; lateral targets expand through `0.80`, `0.95`, `1.075`,
+and `1.20 m`. The lower distance bound remains fixed so every level retains
+easy commands.
+
+Each level is held for at least 60000 environment steps, approximately 2500 PPO
+iterations with 24 steps per rollout. Advancement uses success within the
+farthest 35% of the active range, requiring 70% for forward jumps and 55% for
+lateral jumps with at least 64 samples. TensorBoard records
+`Episode/{forward,lateral}_curriculum_level`,
+`Episode/{forward,lateral}_curriculum_frontier_success`,
+`Episode/{forward,lateral}_curriculum_frontier_samples`, and
+`Episode/{forward,lateral}_curriculum_max_distance`. Play disables the
+curriculum and samples the full configured distance ranges.

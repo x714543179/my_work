@@ -130,7 +130,15 @@ class ManagerBasedTask(BaseTask):
         if self.cfg.terrain.curriculum:
             self.extras["episode"]["terrain_level"] = torch.mean(self.terrain_levels.float())
         if self.cfg.commands.curriculum:
-            self.extras["episode"]["max_command_x"] = self.command_ranges["lin_vel_x"][1]
+            curriculum_metrics = getattr(
+                self, "_command_curriculum_metrics", None
+            )
+            if curriculum_metrics is not None:
+                self.extras["episode"].update(curriculum_metrics())
+            elif "lin_vel_x" in self.command_ranges:
+                self.extras["episode"]["max_command_x"] = (
+                    self.command_ranges["lin_vel_x"][1]
+                )
         if self.cfg.env.send_timeouts:
             self.extras["time_outs"] = self.time_out_buf
 
