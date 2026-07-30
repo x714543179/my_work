@@ -78,12 +78,15 @@ an untucked flight posture separately.
 
 The `line_z` reward is active for only 0.4 seconds after the actual jump signal
 and stops as soon as flight begins. The jump signal returns to zero on the
-first landing. TensorBoard records configured weights under `RewardWeight/*`,
-their per-step values after multiplying by `env.dt` under `RewardScale/*`, and
-these commanded-jump episode metrics:
+first landing. `jump_success=20.0` is issued exactly once on that landing when
+the maximum height is at least 0.65 m and the landing error is at most 0.10 m.
+It uses `use_dt=False`, so the one-step terminal signal is not attenuated by the
+control timestep. TensorBoard records configured weights under
+`RewardWeight/*`, their effective scales under `RewardScale/*`, and these
+commanded-jump episode metrics:
 
 - `Episode/jump_success_rate`: flight and landing with height at least 0.65 m
-  and landing error at most 0.30 m.
+  and landing error at most 0.10 m.
 - `Episode/max_height`: maximum base height.
 - `Episode/landing_error`: planar distance from the target; a failed landing is
   measured from the signal-time jump origin.

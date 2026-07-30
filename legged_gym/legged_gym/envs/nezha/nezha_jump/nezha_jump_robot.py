@@ -478,6 +478,8 @@ class NezhaJump(ManagerBasedTask):
             self.num_envs, dtype=torch.bool, device=self.device
         )
         self.has_jumped = torch.zeros_like(self.was_in_flight)
+        self.just_landed = torch.zeros_like(self.was_in_flight)
+        self.jump_succeeded = torch.zeros_like(self.was_in_flight)
         self.landing_poses = torch.zeros(
             self.num_envs, 2, device=self.device
         )
@@ -605,9 +607,22 @@ class NezhaJump(ManagerBasedTask):
 
         landed = torch.any(self.contact_filt, dim=1) & self.was_in_flight
         first_landing = landed & (~self.has_jumped)
+        self.just_landed[:] = first_landing
         self.landing_poses[first_landing] = self.root_states[
             first_landing, :2
         ]
+        landing_error = torch.linalg.norm(
+            self.landing_targets[first_landing]
+            - self.landing_poses[first_landing],
+            dim=1,
+        )
+        self.jump_succeeded[first_landing] = (
+            self.max_height[first_landing]
+            >= self.cfg.jump_metrics.success_min_height
+        ) & (
+            landing_error
+            <= self.cfg.jump_metrics.success_max_landing_error
+        )
         self.has_jumped |= landed
         self.commands[first_landing, mdp.JUMP_SIGNAL_INDEX] = 0.0
 
@@ -886,6 +901,8 @@ class NezhaJump(ManagerBasedTask):
         self.last_last_actions[env_ids] = 0.0
         self.was_in_flight[env_ids] = False
         self.has_jumped[env_ids] = False
+        self.just_landed[env_ids] = False
+        self.jump_succeeded[env_ids] = False
         self.jump_signal_issued[env_ids] = False
         self.jump_signal_step[env_ids] = 0
         self.jump_start_yaw[env_ids] = self.base_euler_xyz[env_ids, 2]
@@ -914,6 +931,7 @@ class NezhaJump(ManagerBasedTask):
     def _update_post_step_buffers(self):
         self.last_last_actions[:] = self.last_actions
         super()._update_post_step_buffers()
+        self.just_landed[:] = False
 
         candidates = (
             self.not_pushed_up

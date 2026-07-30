@@ -90,6 +90,11 @@ def land_pos(env):
     )
 
 
+def jump_success(env):
+    """Reward a completed target jump exactly once on first landing."""
+    return (env.just_landed & env.jump_succeeded).to(env.root_states.dtype)
+
+
 def base_height_flight(env):
     reward = torch.exp(-5.0 * torch.abs(env.root_states[:, 2] - 0.75)) * 6.0
     return reward * env.was_in_flight.float() * (~env.has_jumped).float()
