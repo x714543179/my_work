@@ -319,7 +319,12 @@ class NezhaJumpCfg(BaseConfig):
         collision = ManagerTermCfg(func=mdp.collision, scale=-5.0, env_arg=True)
         action_rate = ManagerTermCfg(func=mdp.action_rate, scale=-0.15, env_arg=True)
         feet_contact_forces = ManagerTermCfg(func=mdp.feet_contact_forces, scale=-0.1, env_arg=True)
-        land_pos = ManagerTermCfg(func=mdp.land_pos, scale=30.0, env_arg=True)
+        land_pos = ManagerTermCfg(
+            func=mdp.land_pos,
+            scale=30.0,
+            use_dt=False,
+            env_arg=True,
+        )
         jump_success = ManagerTermCfg(
             func=mdp.jump_success,
             scale=20.0,
@@ -408,6 +413,9 @@ class NezhaJumpCfg(BaseConfig):
     class jump_metrics:
         success_min_height = 0.65
         success_max_landing_error = 0.10
+        success_stability_duration_s = 0.15
+        success_max_landing_pitch = 0.20
+        success_max_landing_pitch_rate = 1.0
         lateral_distance_bin_edges = [0.70, 0.95]
 
     class normalization:

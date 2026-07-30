@@ -78,18 +78,27 @@ an untucked flight posture separately.
 
 The `line_z` reward is active for only 0.4 seconds after the actual jump signal
 and stops as soon as flight begins. The jump signal returns to zero on the
-first landing. `jump_success=20.0` is issued exactly once on that landing when
-the maximum height is at least 0.65 m and the landing error is at most 0.10 m.
-It uses `use_dt=False`, so the one-step terminal signal is not attenuated by the
-control timestep. TensorBoard records configured weights under
+first landing. `land_pos=30.0` is a smooth landing-accuracy reward issued only
+on that first landing. `jump_success=20.0` is issued once after all four wheels
+remain in contact for about 0.15 s while maximum height is at least 0.65 m,
+landing error is at most 0.10 m, absolute pitch is at most 0.20 rad, and
+absolute pitch rate is at most 1.0 rad/s. Both one-step rewards use
+`use_dt=False`, so they are not attenuated by the control timestep. TensorBoard
+records configured weights under
 `RewardWeight/*`, their effective scales under `RewardScale/*`, and these
 commanded-jump episode metrics:
 
-- `Episode/jump_success_rate`: flight and landing with height at least 0.65 m
-  and landing error at most 0.10 m.
+- `Episode/jump_success_rate`: flight followed by the stable landing conditions
+  used by the one-step `jump_success` reward.
 - `Episode/max_height`: maximum base height.
 - `Episode/landing_error`: planar distance from the target; a failed landing is
   measured from the signal-time jump origin.
+- `Episode/rear_calf_takeoff_contact_rate`: fraction of commanded jumps whose
+  left or right rear calf contacts the ground after the jump signal and before
+  first takeoff.
+- `Episode/landing_pitch` and `Episode/landing_pitch_rate`: maximum absolute
+  pitch and body-frame pitch rate after first landing, measured only over
+  episodes that landed.
 - `Episode/stationary_jump_success_rate` and
   `Episode/running_jump_success_rate`: success split by approach mode.
 - `Episode/lateral_jump_success_rate`: success for left/right lateral targets.

@@ -80,19 +80,19 @@ def line_z(env, takeoff_window_s=0.4):
 
 def land_pos(env):
     landing_error = env.landing_targets - env.landing_poses
-    stable = torch.linalg.norm(env.base_euler_xyz[:, :2], dim=1) < 0.6
-    high_enough = env.max_height > 0.65
+    high_enough = (
+        env.max_height >= env.cfg.jump_metrics.success_min_height
+    )
     return (
         torch.exp(-torch.sum(torch.abs(landing_error), dim=1))
-        * env.has_jumped.float()
-        * stable.float()
+        * env.just_landed.float()
         * high_enough.float()
     )
 
 
 def jump_success(env):
-    """Reward a completed target jump exactly once on first landing."""
-    return (env.just_landed & env.jump_succeeded).to(env.root_states.dtype)
+    """Reward a target jump once after its landing remains stable."""
+    return env.jump_success_this_step.to(env.root_states.dtype)
 
 
 def base_height_flight(env):

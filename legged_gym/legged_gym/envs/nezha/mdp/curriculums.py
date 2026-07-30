@@ -57,17 +57,7 @@ def _update_distance_level(env, env_ids, command_type):
     if sample_count == 0:
         return
 
-    landing_error = torch.linalg.norm(
-        env.landing_targets[env_ids] - env.landing_poses[env_ids], dim=1
-    )
-    successful = (
-        env.has_jumped[env_ids]
-        & (env.max_height[env_ids] >= env.cfg.jump_metrics.success_min_height)
-        & (
-            landing_error
-            <= env.cfg.jump_metrics.success_max_landing_error
-        )
-    )
+    successful = env.jump_succeeded[env_ids]
     success_rate = float(successful[frontier].float().mean().item())
     setattr(
         env,

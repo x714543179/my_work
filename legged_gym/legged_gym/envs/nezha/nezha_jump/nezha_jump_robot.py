@@ -111,9 +111,17 @@ class NezhaJump(ManagerBasedTask):
             )
 
         target_feet = ["FL_foot", "FR_foot", "RL_foot", "RR_foot"]
+        rear_calves = ["RL_calf", "RR_calf"]
         missing_feet = [name for name in target_feet if name not in body_names]
         if missing_feet:
             raise RuntimeError(f"Nezha asset is missing feet: {missing_feet}.")
+        missing_rear_calves = [
+            name for name in rear_calves if name not in body_names
+        ]
+        if missing_rear_calves:
+            raise RuntimeError(
+                f"Nezha asset is missing rear calves: {missing_rear_calves}."
+            )
         if "trunk" not in body_names:
             raise RuntimeError("Nezha asset does not contain the 'trunk' body.")
 
@@ -205,6 +213,7 @@ class NezhaJump(ManagerBasedTask):
             self.actor_handles.append(actor_handle)
 
         self.feet_indices = self._body_indices(target_feet)
+        self.rear_calf_indices = self._body_indices(rear_calves)
         self.wheel_body_names = target_feet
         self.wheel_body_indices = self.feet_indices.clone()
         self.penalised_contact_indices = self._body_indices(
@@ -480,6 +489,22 @@ class NezhaJump(ManagerBasedTask):
         self.has_jumped = torch.zeros_like(self.was_in_flight)
         self.just_landed = torch.zeros_like(self.was_in_flight)
         self.jump_succeeded = torch.zeros_like(self.was_in_flight)
+        self.jump_success_this_step = torch.zeros_like(self.was_in_flight)
+        self.rear_calf_takeoff_contact = torch.zeros_like(
+            self.was_in_flight
+        )
+        self.landing_stability_steps = torch.zeros_like(self.command_frame)
+        self.landing_stability_steps_required = max(
+            1,
+            int(
+                np.ceil(
+                    self.cfg.jump_metrics.success_stability_duration_s
+                    / self.dt
+                )
+            ),
+        )
+        self.landing_pitch = torch.zeros_like(self.max_height)
+        self.landing_pitch_rate = torch.zeros_like(self.max_height)
         self.landing_poses = torch.zeros(
             self.num_envs, 2, device=self.device
         )
@@ -576,6 +601,16 @@ class NezhaJump(ManagerBasedTask):
             & (~self.was_in_flight)
             & (~self.has_jumped)
         )
+        rear_calf_contact = torch.any(
+            torch.linalg.norm(
+                self.contact_forces[:, self.rear_calf_indices, :], dim=-1
+            )
+            > 1.0,
+            dim=1,
+        )
+        self.rear_calf_takeoff_contact |= (
+            takeoff_phase & rear_calf_contact
+        )
         flight_phase = self.was_in_flight & (~self.has_jumped)
         self.max_hip_takeoff_deviation[:] = torch.maximum(
             self.max_hip_takeoff_deviation,
@@ -611,20 +646,59 @@ class NezhaJump(ManagerBasedTask):
         self.landing_poses[first_landing] = self.root_states[
             first_landing, :2
         ]
-        landing_error = torch.linalg.norm(
-            self.landing_targets[first_landing]
-            - self.landing_poses[first_landing],
-            dim=1,
-        )
-        self.jump_succeeded[first_landing] = (
-            self.max_height[first_landing]
-            >= self.cfg.jump_metrics.success_min_height
-        ) & (
-            landing_error
-            <= self.cfg.jump_metrics.success_max_landing_error
-        )
         self.has_jumped |= landed
         self.commands[first_landing, mdp.JUMP_SIGNAL_INDEX] = 0.0
+
+        self._update_landing_stability()
+
+    def _update_landing_stability(self):
+        post_landing = self.has_jumped
+        landing_transient = post_landing & (~self.jump_succeeded)
+        self.landing_pitch[:] = torch.maximum(
+            self.landing_pitch,
+            torch.abs(self.base_euler_xyz[:, 1])
+            * landing_transient.float(),
+        )
+        self.landing_pitch_rate[:] = torch.maximum(
+            self.landing_pitch_rate,
+            torch.abs(self.base_ang_vel[:, 1])
+            * landing_transient.float(),
+        )
+
+        landing_error = torch.linalg.norm(
+            self.landing_targets - self.landing_poses, dim=1
+        )
+        stable_landing = (
+            post_landing
+            & torch.all(self.contact_filt, dim=1)
+            & (
+                self.max_height
+                >= self.cfg.jump_metrics.success_min_height
+            )
+            & (
+                landing_error
+                <= self.cfg.jump_metrics.success_max_landing_error
+            )
+            & (
+                torch.abs(self.base_euler_xyz[:, 1])
+                <= self.cfg.jump_metrics.success_max_landing_pitch
+            )
+            & (
+                torch.abs(self.base_ang_vel[:, 1])
+                <= self.cfg.jump_metrics.success_max_landing_pitch_rate
+            )
+            & (~self.jump_succeeded)
+        )
+        self.landing_stability_steps[:] = torch.where(
+            stable_landing,
+            self.landing_stability_steps + 1,
+            torch.zeros_like(self.landing_stability_steps),
+        )
+        self.jump_success_this_step[:] = stable_landing & (
+            self.landing_stability_steps
+            >= self.landing_stability_steps_required
+        )
+        self.jump_succeeded |= self.jump_success_this_step
 
     def _compute_torques(self, actions):
         actions_scaled = actions * self.cfg.control.action_scale
@@ -708,17 +782,7 @@ class NezhaJump(ManagerBasedTask):
             target_xy - self.landing_poses[metric_ids],
             target_xy - self.jump_origins[metric_ids],
         )
-        successful = (
-            landed
-            & (
-                self.max_height[metric_ids]
-                >= self.cfg.jump_metrics.success_min_height
-            )
-            & (
-                landing_error
-                <= self.cfg.jump_metrics.success_max_landing_error
-            )
-        )
+        successful = self.jump_succeeded[metric_ids]
         velocity_steps = self.pre_jump_velocity_steps[metric_ids].clamp(min=1)
         approach_error = (
             self.pre_jump_velocity_error_sum[metric_ids]
@@ -737,7 +801,21 @@ class NezhaJump(ManagerBasedTask):
             "takeoff_velocity": self.takeoff_velocity[metric_ids].mean(),
             "jump_heading_error": heading_error.mean(),
             "max_hip_deviation": self.max_hip_deviation[metric_ids].mean(),
+            "rear_calf_takeoff_contact_rate": (
+                self.rear_calf_takeoff_contact[metric_ids].float().mean()
+            ),
         }
+        if torch.any(landed):
+            metrics.update(
+                {
+                    "landing_pitch": self.landing_pitch[metric_ids][
+                        landed
+                    ].mean(),
+                    "landing_pitch_rate": self.landing_pitch_rate[
+                        metric_ids
+                    ][landed].mean(),
+                }
+            )
         stationary = self.stationary_jump_command[metric_ids]
         running = ~stationary
         lateral = self.lateral_jump_command[metric_ids]
@@ -903,6 +981,11 @@ class NezhaJump(ManagerBasedTask):
         self.has_jumped[env_ids] = False
         self.just_landed[env_ids] = False
         self.jump_succeeded[env_ids] = False
+        self.jump_success_this_step[env_ids] = False
+        self.rear_calf_takeoff_contact[env_ids] = False
+        self.landing_stability_steps[env_ids] = 0
+        self.landing_pitch[env_ids] = 0.0
+        self.landing_pitch_rate[env_ids] = 0.0
         self.jump_signal_issued[env_ids] = False
         self.jump_signal_step[env_ids] = 0
         self.jump_start_yaw[env_ids] = self.base_euler_xyz[env_ids, 2]
@@ -932,6 +1015,7 @@ class NezhaJump(ManagerBasedTask):
         self.last_last_actions[:] = self.last_actions
         super()._update_post_step_buffers()
         self.just_landed[:] = False
+        self.jump_success_this_step[:] = False
 
         candidates = (
             self.not_pushed_up
