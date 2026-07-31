@@ -416,6 +416,9 @@ class NezhaJumpCfg(BaseConfig):
         success_stability_duration_s = 0.15
         success_max_landing_pitch = 0.20
         success_max_landing_pitch_rate = 1.0
+        success_target_base_height = 0.58
+        success_max_base_height_error = 0.05
+        success_max_vertical_velocity = 0.20
         lateral_distance_bin_edges = [0.70, 0.95]
 
     class normalization:

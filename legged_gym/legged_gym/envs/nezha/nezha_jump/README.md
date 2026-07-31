@@ -82,7 +82,9 @@ first landing. `land_pos=30.0` is a smooth landing-accuracy reward issued only
 on that first landing. `jump_success=20.0` is issued once after all four wheels
 remain in contact for about 0.15 s while maximum height is at least 0.65 m,
 landing error is at most 0.10 m, absolute pitch is at most 0.20 rad, and
-absolute pitch rate is at most 1.0 rad/s. Both one-step rewards use
+absolute pitch rate is at most 1.0 rad/s. During the same stability window,
+world-frame vertical speed must remain at most 0.20 m/s and base height must
+stay within 0.05 m of 0.58 m. Both one-step rewards use
 `use_dt=False`, so they are not attenuated by the control timestep. TensorBoard
 records configured weights under
 `RewardWeight/*`, their effective scales under `RewardScale/*`, and these
@@ -99,6 +101,10 @@ commanded-jump episode metrics:
 - `Episode/landing_pitch` and `Episode/landing_pitch_rate`: maximum absolute
   pitch and body-frame pitch rate after first landing, measured only over
   episodes that landed.
+- `Episode/landing_vertical_velocity`: absolute world-frame vertical velocity
+  at first contact after flight.
+- `Episode/height_peak_to_peak`: maximum minus minimum base height from first
+  landing until the episode ends.
 - `Episode/stationary_jump_success_rate` and
   `Episode/running_jump_success_rate`: success split by approach mode.
 - `Episode/lateral_jump_success_rate`: success for left/right lateral targets.
