@@ -157,6 +157,13 @@ def hip_tuck_flight(env):
     )
 
 
+def post_landing_hip_pose(env, tolerance=0.15):
+    """Penalize individual hip deviations after the first landing."""
+    hip_deviation, _, _ = hip_modes(env)
+    excess = (torch.abs(hip_deviation) - tolerance).clamp(min=0.0)
+    return torch.sum(torch.square(excess), dim=1) * env.has_jumped.float()
+
+
 def orientation(env):
     return torch.exp(-torch.sum(torch.abs(env.base_euler_xyz[:, :2]), dim=1))
 

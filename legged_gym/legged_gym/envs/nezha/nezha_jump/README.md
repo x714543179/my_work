@@ -69,12 +69,15 @@ rather than turning the body toward the landing target. Lateral distance and
 cross-track errors are logged as diagnostics but do not have a dedicated
 landing reward.
 
-Hip joints use a `-0.5` default-position weight. The `hip_splay_takeoff=-4.0`
+Hip joints use a `-0.5` default-position weight. The `hip_splay_takeoff=-8.0`
 term penalizes only left/right symmetric splay beyond `0.20 rad` before flight,
 without penalizing collective lateral hip motion. During flight,
-`hip_tuck_flight=-4.0` pulls all four hips back toward their default positions.
-This preserves lateral push-off authority while discouraging takeoff splay and
-an untucked flight posture separately.
+`hip_tuck_flight=-8.0` pulls all four hips back toward their default positions.
+After first landing, `post_landing_hip_pose=-4.0` penalizes each hip's deviation
+beyond `0.15 rad` until reset, so rear-only splay cannot be hidden by averaging
+with the front hips. This preserves lateral push-off authority while
+discouraging takeoff splay, an untucked flight posture, and a split landing
+stance separately.
 
 The `line_z` reward is active for only 0.4 seconds after the actual jump signal
 and stops as soon as flight begins. The jump signal returns to zero on the

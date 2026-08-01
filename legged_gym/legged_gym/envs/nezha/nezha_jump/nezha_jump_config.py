@@ -303,6 +303,12 @@ class NezhaJumpCfg(BaseConfig):
             scale=-8.0,
             env_arg=True,
         )
+        post_landing_hip_pose = ManagerTermCfg(
+            func=mdp.post_landing_hip_pose,
+            scale=-4.0,
+            env_arg=True,
+            params={"tolerance": 0.15},
+        )
         ang_vel_xy = ManagerTermCfg(func=mdp.ang_vel_xy, scale=-0.2, env_arg=True)
         jump_yaw_tracking = ManagerTermCfg(
             func=mdp.jump_yaw_tracking,
