@@ -303,12 +303,6 @@ class NezhaJumpCfg(BaseConfig):
             scale=-8.0,
             env_arg=True,
         )
-        post_landing_hip_pose = ManagerTermCfg(
-            func=mdp.post_landing_hip_pose,
-            scale=-4.0,
-            env_arg=True,
-            params={"tolerance": 0.15},
-        )
         ang_vel_xy = ManagerTermCfg(func=mdp.ang_vel_xy, scale=-0.2, env_arg=True)
         jump_yaw_tracking = ManagerTermCfg(
             func=mdp.jump_yaw_tracking,
@@ -348,6 +342,12 @@ class NezhaJumpCfg(BaseConfig):
             scale=3.0,
             env_arg=True,
             params={"tracking_sigma": 0.25},
+        )
+        post_landing_vertical_velocity = ManagerTermCfg(
+            func=mdp.post_landing_vertical_velocity,
+            scale=-1.0,
+            env_arg=True,
+            params={"delta": 0.5},
         )
         foot_clearance = ManagerTermCfg(func=mdp.foot_clearance, scale=-3.0, env_arg=True)
         wheel_speed_takeoff = ManagerTermCfg(func=mdp.wheel_speed_takeoff, scale=-7.0e-3, env_arg=True)
@@ -422,9 +422,6 @@ class NezhaJumpCfg(BaseConfig):
         success_stability_duration_s = 0.15
         success_max_landing_pitch = 0.20
         success_max_landing_pitch_rate = 1.0
-        success_target_base_height = 0.58
-        success_max_base_height_error = 0.05
-        success_max_vertical_velocity = 0.20
         lateral_distance_bin_edges = [0.70, 0.95]
 
     class normalization:

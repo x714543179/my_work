@@ -105,7 +105,7 @@ def base_height_stance(env):
     return (
         torch.abs(env.root_states[:, 2] - 0.58) * env.has_jumped.float()
         + 0.2
-        * torch.abs(env.root_states[:, 2] - 0.38)
+        * torch.abs(env.root_states[:, 2] - 0.5)
         * preparing.float()
     )
 
@@ -155,13 +155,6 @@ def hip_tuck_flight(env):
         torch.sum(torch.square(hip_deviation), dim=1)
         * flight_phase.float()
     )
-
-
-def post_landing_hip_pose(env, tolerance=0.15):
-    """Penalize individual hip deviations after the first landing."""
-    hip_deviation, _, _ = hip_modes(env)
-    excess = (torch.abs(hip_deviation) - tolerance).clamp(min=0.0)
-    return torch.sum(torch.square(excess), dim=1) * env.has_jumped.float()
 
 
 def orientation(env):
@@ -312,6 +305,18 @@ def post_landing_velocity(env, tracking_sigma=0.25):
     )
     error = forward_error + lateral_slip + 0.5 * yaw_rate_error
     return torch.exp(-error / tracking_sigma) * env.has_jumped.float()
+
+
+def post_landing_vertical_velocity(env, delta=0.5):
+    """Damp vertical motion after landing without over-weighting impact speed."""
+    vertical_velocity = env.root_states[:, 9]
+    abs_velocity = torch.abs(vertical_velocity)
+    loss = torch.where(
+        abs_velocity <= delta,
+        torch.square(vertical_velocity),
+        2.0 * delta * abs_velocity - delta**2,
+    )
+    return loss * env.has_jumped.float()
 
 
 def foot_clearance(env):
