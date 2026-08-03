@@ -105,7 +105,7 @@ def base_height_stance(env):
     return (
         torch.abs(env.root_states[:, 2] - 0.58) * env.has_jumped.float()
         + 0.2
-        * torch.abs(env.root_states[:, 2] - 0.5)
+        * torch.abs(env.root_states[:, 2] - 0.38)
         * preparing.float()
     )
 
