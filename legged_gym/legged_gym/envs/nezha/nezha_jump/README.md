@@ -64,6 +64,10 @@ and wheel speed; running samples are free to roll. During flight, horizontal
 velocity is tracked in both world x and y from the two-dimensional landing
 target and an expected `0.55 s` flight time. After landing, stationary samples
 track zero velocity while running samples resume their approach velocity.
+The local `v_z` ablation uses `post_landing_vertical_velocity=-1.0`: world-frame
+vertical motion is penalized quadratically below `0.5 m/s` and linearly above
+that threshold after first landing. It is a soft reward only and is not part of
+the one-step jump-success conditions.
 During takeoff and flight, heading and yaw rate follow the heading trajectory
 rather than turning the body toward the landing target. Lateral distance and
 cross-track errors are logged as diagnostics but do not have a dedicated

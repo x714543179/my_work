@@ -343,6 +343,12 @@ class NezhaJumpCfg(BaseConfig):
             env_arg=True,
             params={"tracking_sigma": 0.25},
         )
+        post_landing_vertical_velocity = ManagerTermCfg(
+            func=mdp.post_landing_vertical_velocity,
+            scale=-1.0,
+            env_arg=True,
+            params={"delta": 0.5},
+        )
         foot_clearance = ManagerTermCfg(func=mdp.foot_clearance, scale=-3.0, env_arg=True)
         wheel_speed_takeoff = ManagerTermCfg(func=mdp.wheel_speed_takeoff, scale=-7.0e-3, env_arg=True)
         sys_front_real = ManagerTermCfg(func=mdp.front_rear_symmetry, scale=-5.0e-3, env_arg=True)

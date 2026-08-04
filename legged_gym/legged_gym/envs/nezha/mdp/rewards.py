@@ -307,6 +307,18 @@ def post_landing_velocity(env, tracking_sigma=0.25):
     return torch.exp(-error / tracking_sigma) * env.has_jumped.float()
 
 
+def post_landing_vertical_velocity(env, delta=0.5):
+    """Damp vertical motion after landing without over-weighting impact speed."""
+    vertical_velocity = env.root_states[:, 9]
+    abs_velocity = torch.abs(vertical_velocity)
+    loss = torch.where(
+        abs_velocity <= delta,
+        torch.square(vertical_velocity),
+        2.0 * delta * abs_velocity - delta**2,
+    )
+    return loss * env.has_jumped.float()
+
+
 def foot_clearance(env):
     translated = env.feet_pos - env.root_states[:, :3].unsqueeze(1)
     base_quat = env.base_quat.unsqueeze(1).expand(-1, len(env.feet_indices), -1)
