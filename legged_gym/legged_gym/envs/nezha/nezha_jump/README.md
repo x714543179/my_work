@@ -80,13 +80,16 @@ without penalizing collective lateral hip motion. During flight,
 This preserves lateral push-off authority while discouraging takeoff splay and
 an untucked flight posture separately.
 
-The `line_z` reward is active for only 0.4 seconds after the actual jump signal
-and stops as soon as flight begins. The jump signal returns to zero on the
-first landing. `land_pos=30.0` is a smooth landing-accuracy reward issued only
-on that first landing. `jump_success=20.0` is issued once after all four wheels
-remain in contact for about 0.15 s while maximum height is at least 0.65 m,
-landing error is at most 0.10 m, absolute pitch is at most 0.20 rad, and
-absolute pitch rate is at most 1.0 rad/s. Both one-step rewards use
+Jump preparation is split into three phases. Before the signal,
+`base_height_stance` guides the base toward the normal `0.50 m` stance height.
+For the first `0.16 s` after the signal, `takeoff_crouch=-10.0` guides the base
+toward `0.40 m`. The `line_z` propulsion reward then becomes active for `0.40 s`
+and stops early as soon as flight begins. The jump signal returns to zero on
+the first landing. `land_pos=30.0` is a smooth landing-accuracy reward issued
+only on that first landing. `jump_success=20.0` is issued once after all four
+wheels remain in contact for about 0.15 s while maximum height is at least
+0.65 m, landing error is at most 0.10 m, absolute pitch is at most 0.20 rad,
+and absolute pitch rate is at most 1.0 rad/s. Both one-step rewards use
 `use_dt=False`, so they are not attenuated by the control timestep. TensorBoard
 records configured weights under
 `RewardWeight/*`, their effective scales under `RewardScale/*`, and these

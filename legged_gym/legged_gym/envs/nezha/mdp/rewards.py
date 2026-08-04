@@ -50,7 +50,25 @@ def stationary_displacement(env):
     return displacement * active.float()
 
 
-def line_z(env, takeoff_window_s=0.4):
+def takeoff_crouch(env, target_height=0.40, duration_s=0.16):
+    """Guide a brief crouch after the jump signal and before propulsion."""
+    time_since_signal = (
+        env.episode_length_buf - env.jump_signal_step
+    ).float() * env.dt
+    active = (
+        env.jump_signal_issued
+        & (~env.was_in_flight)
+        & (~env.has_jumped)
+        & (time_since_signal >= 0.0)
+        & (time_since_signal < duration_s)
+    )
+    return (
+        torch.abs(env.root_states[:, 2] - target_height)
+        * active.float()
+    )
+
+
+def line_z(env, start_delay_s=0.16, takeoff_window_s=0.4):
     target_delta = env.landing_targets - env.jump_origins
     command_direction = target_delta / torch.norm(
         target_delta, dim=1, keepdim=True
@@ -66,7 +84,8 @@ def line_z(env, takeoff_window_s=0.4):
         env.episode_length_buf - env.jump_signal_step
     ).float() * env.dt
     in_takeoff_window = (
-        (time_since_signal >= 0.0) & (time_since_signal < takeoff_window_s)
+        (time_since_signal >= start_delay_s)
+        & (time_since_signal < start_delay_s + takeoff_window_s)
     )
     active = (
         (env.root_states[:, 9] > 0.0)
@@ -105,7 +124,7 @@ def base_height_stance(env):
     return (
         torch.abs(env.root_states[:, 2] - 0.58) * env.has_jumped.float()
         + 0.2
-        * torch.abs(env.root_states[:, 2] - 0.38)
+        * torch.abs(env.root_states[:, 2] - 0.50)
         * preparing.float()
     )
 

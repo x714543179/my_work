@@ -280,11 +280,17 @@ class NezhaJumpCfg(BaseConfig):
             scale=-25.0,
             env_arg=True,
         )
+        takeoff_crouch = ManagerTermCfg(
+            func=mdp.takeoff_crouch,
+            scale=-10.0,
+            env_arg=True,
+            params={"target_height": 0.40, "duration_s": 0.16},
+        )
         line_z = ManagerTermCfg(
             func=mdp.line_z,
             scale=16.0,
             env_arg=True,
-            params={"takeoff_window_s": 0.4},
+            params={"start_delay_s": 0.16, "takeoff_window_s": 0.4},
         )
         flight = ManagerTermCfg(func=mdp.flight, scale=2.0, env_arg=True)
         base_height_flight = ManagerTermCfg(func=mdp.base_height_flight, scale=3.0, env_arg=True)
