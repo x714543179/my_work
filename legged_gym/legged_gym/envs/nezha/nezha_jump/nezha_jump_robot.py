@@ -437,6 +437,8 @@ class NezhaJump(ManagerBasedTask):
             self.num_dof, device=self.device
         )
         self.init_dof_pos = torch.zeros_like(self.default_dof_pos)
+        self.take_off_dof_pos = torch.zeros_like(self.default_dof_pos)
+        take_off_joint_angles = self.cfg.init_state.take_off_joint_angles
         for dof_id, name in enumerate(self.dof_names):
             self.default_dof_pos[dof_id] = (
                 self.cfg.init_state.default_joint_angles[name]
@@ -444,6 +446,7 @@ class NezhaJump(ManagerBasedTask):
             self.init_dof_pos[dof_id] = (
                 self.cfg.init_state.init_joint_angles[name]
             )
+            self.take_off_dof_pos[dof_id] = take_off_joint_angles[name]
             for pattern, stiffness in self.cfg.control.stiffness.items():
                 if pattern in name:
                     self.p_gains[dof_id] = stiffness
@@ -454,6 +457,7 @@ class NezhaJump(ManagerBasedTask):
                     raise KeyError(f"No PD gains configured for joint {name!r}.")
         self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
         self.init_dof_pos = self.init_dof_pos.unsqueeze(0)
+        self.take_off_dof_pos = self.take_off_dof_pos.unsqueeze(0)
 
     def _init_jump_buffers(self):
         self.init_state = torch.zeros_like(self.root_states)

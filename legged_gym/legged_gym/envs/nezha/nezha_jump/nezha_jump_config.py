@@ -164,6 +164,25 @@ class NezhaJumpCfg(BaseConfig):
         init_joint_angles = default_joint_angles
         lie_joint_angles = default_joint_angles
 
+        take_off_joint_angles = {
+            "FL_hip_joint": 0.0,
+            "FL_thigh_joint": 1,
+            "FL_calf_joint": -2.1,
+            "FL_foot_joint": 0.0,
+            "FR_hip_joint": 0.0,
+            "FR_thigh_joint": 1,
+            "FR_calf_joint": -2.1,
+            "FR_foot_joint": 0.0,
+            "RL_hip_joint": 0.0,
+            "RL_thigh_joint": 1,
+            "RL_calf_joint": -2.1,
+            "RL_foot_joint": 0.0,
+            "RR_hip_joint": 0.0,
+            "RR_thigh_joint": 1,
+            "RR_calf_joint": -2.1,
+            "RR_foot_joint": 0.0,
+        }
+
     class control:
         control_type = "P"
         stiffness = {
@@ -285,6 +304,12 @@ class NezhaJumpCfg(BaseConfig):
             scale=-10.0,
             env_arg=True,
             params={"target_height": 0.40, "duration_s": 0.16},
+        )
+        takeoff_joint_pose = ManagerTermCfg(
+            func=mdp.takeoff_joint_pose,
+            scale=-10.0,
+            env_arg=True,
+            params={"duration_s": 0.16},
         )
         line_z = ManagerTermCfg(
             func=mdp.line_z,

@@ -83,9 +83,11 @@ an untucked flight posture separately.
 Jump preparation is split into three phases. Before the signal,
 `base_height_stance` guides the base toward the normal `0.50 m` stance height.
 For the first `0.16 s` after the signal, `takeoff_crouch=-10.0` guides the base
-toward `0.40 m`. The `line_z` propulsion reward then becomes active for `0.40 s`
-and stops early as soon as flight begins. The jump signal returns to zero on
-the first landing. `land_pos=30.0` is a smooth landing-accuracy reward issued
+toward `0.40 m`, while `takeoff_joint_pose=-10.0` tracks the configured
+`take_off_joint_angles` crouch pose. Wheel joints are excluded from this pose
+error. The `line_z` propulsion reward then becomes active for `0.40 s` and
+stops early as soon as flight begins. The jump signal returns to zero on the
+first landing. `land_pos=30.0` is a smooth landing-accuracy reward issued
 only on that first landing. `jump_success=20.0` is issued once after all four
 wheels remain in contact for about 0.15 s while maximum height is at least
 0.65 m, landing error is at most 0.10 m, absolute pitch is at most 0.20 rad,
