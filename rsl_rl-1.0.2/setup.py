@@ -12,7 +12,7 @@ setup(name='rsl_rl',
             "torch>=1.4.0",
             "torchvision>=0.5.0",
             "numpy>=1.16.4",
-            "tensordict>=0.7.0",
+            "tensordict>=0.5.0",
             "GitPython",
       ],
       )

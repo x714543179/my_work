@@ -439,6 +439,8 @@ class NezhaJumpCfg(BaseConfig):
         success_min_height = 0.65
         success_max_landing_error = 0.10
         success_stability_duration_s = 0.15
+        success_max_landing_roll = 0.20
+        success_max_landing_roll_rate = 1.0
         success_max_landing_pitch = 0.20
         success_max_landing_pitch_rate = 1.0
         lateral_distance_bin_edges = [0.70, 0.95]
@@ -558,11 +560,11 @@ class NezhaJumpCfgPPO(BaseConfig):
         wandb_mode = "online"
         wandb_group = "manager_reproduction"
         wandb_tags = ["nezha", "spring-jump", "manager"]
-        save_interval = 500
+        save_interval = 1000
         run_name = "nezha_spring_jump_manager"
         experiment_name = "nezha_spring_jump"
         num_steps_per_env = 24
-        max_iterations = 50000
+        max_iterations = 15000
         load_run = -1
         checkpoint = -1
         resume = False

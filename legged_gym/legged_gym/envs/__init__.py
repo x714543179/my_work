@@ -61,3 +61,9 @@ task_registry.register("go1_omni_jump", Go1OmniJump, Go1OmniJumpCfg(), Go1OmniJu
 task_registry.register("nezha_jump", NezhaJump, NezhaJumpCfg(), NezhaJumpCfgPPO())
 
 # task_registry.register("nezha", NEZHA, NEZHARoughCfg(), NEZHARoughCfgPPO() )
+
+from .nezha.nezha_jumpformer import NezhaJumpFormer, NezhaJumpFormerCfg, NezhaJumpFormerCfgPPO
+
+task_registry.register(
+    "nezha_jumpformer", NezhaJumpFormer, NezhaJumpFormerCfg(), NezhaJumpFormerCfgPPO()
+)

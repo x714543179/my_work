@@ -66,6 +66,10 @@ class RslRlVecEnvAdapter:
         obs_dict.update(getattr(self.env, "obs_term_bufs", {}))
         obs_dict.update(getattr(self.env, "privileged_obs_term_bufs", {}))
         obs_dict.update(self._previous_privileged_terms(prev_privileged_obs))
+        for group, value in getattr(self.env, "obs_extra_bufs", {}).items():
+            if group in obs_dict:
+                raise ValueError(f"Extra observation group collides with existing key: {group}")
+            obs_dict[group] = value
         return TensorDict(obs_dict, batch_size=[self.num_envs], device=self.device)
 
     def _previous_privileged_terms(self, prev_privileged_obs):

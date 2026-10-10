@@ -25,6 +25,14 @@ def _pre_jump(env):
     )
 
 
+def _valid_flight(env):
+    return (
+        env.was_in_flight
+        & (~env.has_jumped)
+        & (~env.flight_nonfoot_contact)
+    )
+
+
 def before_setting(env):
     error = torch.sum(torch.abs(_leg_positions(env) - env.default_dof_pos), dim=1)
     return torch.exp(-0.5 * error) * _pre_jump(env).float()
@@ -79,6 +87,7 @@ def line_z(env, takeoff_window_s=0.4):
 
 
 def land_pos(env):
+    """Reward first-touchdown accuracy continuously, without a success cutoff."""
     landing_error = env.landing_targets - env.landing_poses
     high_enough = (
         env.max_height >= env.cfg.jump_metrics.success_min_height
@@ -97,7 +106,7 @@ def jump_success(env):
 
 def base_height_flight(env):
     reward = torch.exp(-5.0 * torch.abs(env.root_states[:, 2] - 0.75)) * 6.0
-    return reward * env.was_in_flight.float() * (~env.has_jumped).float()
+    return reward * _valid_flight(env).float()
 
 
 def base_height_stance(env):
@@ -179,7 +188,11 @@ def jump_yaw_tracking(
         torch.square(heading_error) / heading_sigma
         + torch.square(yaw_rate_error) / yaw_rate_sigma
     )
-    active = env.jump_signal_issued & (~env.has_jumped)
+    active = (
+        env.jump_signal_issued
+        & (~env.has_jumped)
+        & (~env.flight_nonfoot_contact)
+    )
     return torch.exp(-error) * active.float()
 
 
@@ -277,7 +290,7 @@ def front_rear_symmetry(env):
 
 
 def flight(env):
-    return env.was_in_flight.float() * (~env.has_jumped).float()
+    return _valid_flight(env).float()
 
 
 def tracking_lin_vel(env, expected_flight_time=0.55, tracking_sigma=0.5):
@@ -289,8 +302,7 @@ def tracking_lin_vel(env, expected_flight_time=0.55, tracking_sigma=0.5):
     )
     return (
         torch.exp(-error / tracking_sigma)
-        * env.was_in_flight.float()
-        * (~env.has_jumped).float()
+        * _valid_flight(env).float()
         * 5.0
     )
 

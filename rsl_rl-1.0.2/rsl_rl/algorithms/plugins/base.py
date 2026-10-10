@@ -80,6 +80,8 @@ class PPOPlugin:
 
         返回额外 loss 的字典；字典中所有 loss 会被求和并加到总 loss 上，
         也会被记录到日志中。返回空字典表示无额外 loss。
+        batch.actor_extra 提供原始观测前向的附加输出（保留梯度），仅在此 hook
+        期间有效。插件应只读使用；对称观测等额外前向不会覆盖这些输出。
         """
         return {}
 

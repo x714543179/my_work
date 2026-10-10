@@ -56,6 +56,15 @@ class ObservationManager(ManagerBase):
                 self.env.privileged_obs_term_bufs = {}
                 self._privileged_term_names = []
                 self._privileged_term_widths = []
+            # Optional manager groups (e.g. clean prediction labels) remain
+            # separate from the actor/critic vectors and their normalizers.
+            self.env.obs_extra_bufs = {}
+            for group, terms in self._group_terms.items():
+                if group in ("actor", "critic"):
+                    continue
+                values = self._compute_group_values(group, terms)
+                frame = torch.cat([value for _, value in values], dim=-1)
+                self.env.obs_extra_bufs[group] = self._append_group_history(group, frame)
         else:
             self.env._compute_observations_impl()
         return self.env.obs_buf, self.env.privileged_obs_buf

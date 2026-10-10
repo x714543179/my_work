@@ -122,6 +122,13 @@ class RolloutStorage:
             self.masks: torch.Tensor | None = masks
             """Batch of trajectory masks for recurrent networks (RL recurrent only)."""
 
+            self.actor_extra: dict | None = None
+            """Original actor outputs, available only during PPO's extra-loss hooks.
+
+            This transient field is not rollout data and is never stored or shuffled.
+            PPO clears it after the hooks so a batch does not retain an autograd graph.
+            """
+
     def __init__(
         self,
         training_type: str,

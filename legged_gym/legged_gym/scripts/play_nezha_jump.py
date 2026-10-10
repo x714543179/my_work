@@ -114,21 +114,22 @@ def _landing_metrics(env):
 
 
 def play(args):
-    if args.task not in ("a1", TASK_NAME):
-        raise ValueError(f"This script only supports --task={TASK_NAME!s}.")
-    args.task = TASK_NAME
+    task_name = TASK_NAME if args.task == "a1" else args.task
+    if task_name not in (TASK_NAME, "nezha_jumpformer"):
+        raise ValueError("Use --task nezha_jump or --task nezha_jumpformer.")
+    args.task = task_name
 
-    env_cfg, train_cfg = task_registry.get_cfgs(name=TASK_NAME)
+    env_cfg, train_cfg = task_registry.get_cfgs(name=task_name)
     _configure_play_env(env_cfg, args)
 
-    env, _ = task_registry.make_env(name=TASK_NAME, args=args, env_cfg=env_cfg)
+    env, _ = task_registry.make_env(name=task_name, args=args, env_cfg=env_cfg)
 
     # Load explicitly so CUDA checkpoints can also be replayed on CPU.
     args.resume = False
     train_cfg.runner.resume = False
     ppo_runner, train_cfg = task_registry.make_alg_runner(
         env=env,
-        name=TASK_NAME,
+        name=task_name,
         args=args,
         train_cfg=train_cfg,
         log_root=None,

@@ -270,6 +270,7 @@ class PPO:
             "distribution_params": distribution_params,
             "entropy": entropy,
             "aux_losses": aux_losses,
+            "actor_extra": extra,
         }
 
     def _adjust_learning_rate_based_on_kl(self, batch: TensorDict, distribution_params: tuple[torch.Tensor, ...]) -> None:
@@ -413,12 +414,17 @@ class PPO:
             }
             loss_results = self._compute_loss(mb_forward_results, mb_rollout_data)
 
-            # 收集各插件的额外 loss，合并到总 loss 和日志中
-            for plugin in self.plugins:
-                extra = plugin.on_per_batch_extra_loss(self, batch)
-                if extra:
-                    loss_results["loss"] = loss_results["loss"] + sum(extra.values())
-                    loss_results.update(extra)
+            # Share the original actor outputs, with their gradients, across
+            # extra-loss hooks. A mirrored actor forward cannot overwrite them.
+            batch.actor_extra = mb_forward_results.pop("actor_extra")
+            try:
+                for plugin in self.plugins:
+                    extra = plugin.on_per_batch_extra_loss(self, batch)
+                    if extra:
+                        loss_results["loss"] = loss_results["loss"] + sum(extra.values())
+                        loss_results.update(extra)
+            finally:
+                batch.actor_extra = None
 
             loss = loss_results["loss"]
 

@@ -213,6 +213,9 @@ class NezhaJump(ManagerBasedTask):
             self.actor_handles.append(actor_handle)
 
         self.feet_indices = self._body_indices(target_feet)
+        self.non_foot_indices = self._body_indices(
+            [name for name in body_names if name not in target_feet]
+        )
         self.rear_calf_indices = self._body_indices(rear_calves)
         self.wheel_body_names = target_feet
         self.wheel_body_indices = self.feet_indices.clone()
@@ -486,6 +489,7 @@ class NezhaJump(ManagerBasedTask):
         self.was_in_flight = torch.zeros(
             self.num_envs, dtype=torch.bool, device=self.device
         )
+        self.flight_nonfoot_contact = torch.zeros_like(self.was_in_flight)
         self.has_jumped = torch.zeros_like(self.was_in_flight)
         self.just_landed = torch.zeros_like(self.was_in_flight)
         self.jump_succeeded = torch.zeros_like(self.was_in_flight)
@@ -639,6 +643,7 @@ class NezhaJump(ManagerBasedTask):
             self.root_states[first_takeoff, 7:9], dim=1
         )
         self.was_in_flight |= all_air & jump_signal
+        self._update_flight_contact()
 
         landed = torch.any(self.contact_filt, dim=1) & self.was_in_flight
         first_landing = landed & (~self.has_jumped)
@@ -650,6 +655,19 @@ class NezhaJump(ManagerBasedTask):
         self.commands[first_landing, mdp.JUMP_SIGNAL_INDEX] = 0.0
 
         self._update_landing_stability()
+
+    def _update_flight_contact(self):
+        """Latch non-foot impacts so bouncing cannot restart flight rewards."""
+        non_foot_contact = torch.any(
+            torch.linalg.norm(
+                self.contact_forces[:, self.non_foot_indices, :], dim=-1
+            )
+            > 1.0,
+            dim=1,
+        )
+        self.flight_nonfoot_contact |= (
+            self.was_in_flight & (~self.has_jumped) & non_foot_contact
+        )
 
     def _update_landing_stability(self):
         post_landing = self.has_jumped
@@ -678,6 +696,14 @@ class NezhaJump(ManagerBasedTask):
             & (
                 landing_error
                 <= self.cfg.jump_metrics.success_max_landing_error
+            )
+            & (
+                torch.abs(self.base_euler_xyz[:, 0])
+                <= self.cfg.jump_metrics.success_max_landing_roll
+            )
+            & (
+                torch.abs(self.base_ang_vel[:, 0])
+                <= self.cfg.jump_metrics.success_max_landing_roll_rate
             )
             & (
                 torch.abs(self.base_euler_xyz[:, 1])
@@ -978,6 +1004,7 @@ class NezhaJump(ManagerBasedTask):
         )
         self.last_last_actions[env_ids] = 0.0
         self.was_in_flight[env_ids] = False
+        self.flight_nonfoot_contact[env_ids] = False
         self.has_jumped[env_ids] = False
         self.just_landed[env_ids] = False
         self.jump_succeeded[env_ids] = False
